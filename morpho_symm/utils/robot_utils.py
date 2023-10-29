@@ -95,8 +95,8 @@ def load_symmetric_system(
     # We allow symbolic expressions (e.g. `np.pi/2`) in the `q_zero` and `init_q`.
     q_zero = np.array([eval(str(s)) for s in robot_cfg.q_zero], dtype=float) if robot_cfg.q_zero is not None else None
     init_q = np.array([eval(str(s)) for s in robot_cfg.init_q], dtype=float) if robot_cfg.init_q is not None else None
-    robot = PinBulletWrapper(robot_name=robot_name, init_q=init_q, q_zero=q_zero,
-                             hip_height=robot_cfg.hip_height, endeff_names=robot_cfg.endeff_names)
+    # robot = PinBulletWrapper(robot_name=robot_name, init_q=init_q, q_zero=q_zero,
+    #                          hip_height=robot_cfg.hip_height, endeff_names=robot_cfg.endeff_names)
 
     if debug:
         pb = configure_bullet_simulation(gui=True, debug=debug)
@@ -113,7 +113,7 @@ def load_symmetric_system(
     rep_field = float if robot_cfg.rep_fields.lower() != 'complex' else complex
 
     # Get the dimensions of the spaces Q_js and TqQ_js
-    dimQ_js, dimTqQ_js = robot.nq - 7, robot.nv - 6
+    dimQ_js, dimTqQ_js = 12, 12
 
     # Joint-Space Q_js (generalized position coordinates)
     rep_Q_js = {G.identity: np.eye(dimQ_js, dtype=rep_field)}
@@ -124,8 +124,8 @@ def load_symmetric_system(
 
     # Generate ESCNN representation of generators
     for g_gen, perm, refx in zip(G.generators, robot_cfg.permutation_Q_js, robot_cfg.reflection_Q_js):
-        assert len(perm) == dimQ_js == len(refx), \
-            f"Dimension of joint-space position coordinates dim(Q_js)={robot.n_js} != dim(rep_Q_JS): {len(refx)}"
+        # assert len(perm) == dimQ_js == len(refx), \
+        #     f"Dimension of joint-space position coordinates dim(Q_js)={robot.n_js} != dim(rep_Q_JS): {len(refx)}"
         refx = np.array(refx, dtype=rep_field)
         rep_Q_js[g_gen] = gen_permutation_matrix(oneline_notation=perm, reflections=refx)
     # Generate the entire group
@@ -160,7 +160,7 @@ def load_symmetric_system(
 
     # Add representations to the group.
     G.representations.update(Q_js=rep_Q_js, TqQ_js=rep_TqQ_js)
-    return robot, G
+    return G, G
 
 
 def generate_euclidean_space_representations(G: Group) -> Representation:

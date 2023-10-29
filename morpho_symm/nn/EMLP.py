@@ -6,6 +6,12 @@ import numpy as np
 import torch
 from escnn.nn import EquivariantModule, FieldType, GeometricTensor
 
+import escnn
+from escnn.nn import FieldType
+from hydra import compose, initialize
+
+from morpho_symm.utils.robot_utils import load_symmetric_system
+
 from morpho_symm.nn.EquivariantModules import IsotypicBasis
 
 log = logging.getLogger(__name__)
@@ -209,18 +215,31 @@ class EMLP(EquivariantModule):
         assert inv_features.shape[-1] == n_inv_features, f"Expected {n_inv_features} got {inv_features.shape[-1]}"
         return inv_features
 
-    def evaluate_output_shape(self, input_shape: tuple[int, ...]) -> tuple[int, ...]:
+    def evaluate_output_shape(self, input_shape):
         """Returns the output shape of the model given an input shape."""
         batch_size = input_shape[0]
         return batch_size, self.out_type.size
 
 
 if __name__ == "__main__":
-    G = escnn.group.DihedralGroup(6)
+    # Load robot instance and its symmetry group
+    initialize(config_path="../cfg/robot", version_base='1.3')
+    robot_name = 'atlas'  # or any of the robots in the library (see `/morpho_symm/cfg/robot`)
+    robot_cfg = compose(config_name=f"{robot_name}.yaml")
+    robot, G = load_symmetric_system(robot_cfg=robot_cfg)
+
+    # We use ESCNN to handle the group/representation-theoretic concepts and for the construction of equivariant neural networks.
     gspace = escnn.gspaces.no_base_space(G)
-    # Test Invariant EMLP
+    # Get the relevant group representations.
+    rep_QJ = G.representations["Q_js"]  # Used to transform joint-space position coordinates q_js ∈ Q_js
+    rep_TqQJ = G.representations["TqQ_js"]  # Used to transform joint-space velocity coordinates v_js ∈ TqQ_js
+    rep_O3 = G.representations["Rd"]  # Used to transform the linear momentum l ∈ R3
+    rep_O3_pseudo = G.representations["Rd_pseudo"]  # Used to transform the angular momentum k ∈ R3
+
+    # Define the input and output FieldTypes using the representations of each geometric object.
     in_type = escnn.nn.FieldType(gspace, [G.regular_representation] * 5)
-    out_type = escnn.nn.FieldType(gspace, [G.trivial_representation] * 6)
+    out_type = escnn.nn.FieldType(gspace, [G.trivial_representation] * 1)
+    # Test Invariant EMLP
     emlp = EMLP(in_type, out_type,
                 num_hidden_units=128,
                 num_layers=3,
@@ -230,11 +249,17 @@ if __name__ == "__main__":
     x = in_type(torch.randn(1, in_type.size))
     y = emlp(x)
 
+    import numpy as np
+    model_parameters = filter(lambda p: p.requires_grad, emlp.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    print("Net PARAMS: ", params)
+
     for g in G.elements:
         g_x = in_type(in_type.transform_fibers(x.tensor, g))  # Compute g · x
         g_y = emlp(g_x)  # Compute g · y
         assert torch.allclose(y.tensor, g_y.tensor, rtol=1e-4, atol=1e-4), \
             f"{g} invariance failed {y.tensor} != {g_y.tensor}"
+    print("invariance passed")
 
     # Test Equivariant EMLP
     in_type = escnn.nn.FieldType(gspace, [G.regular_representation] * 5)
@@ -245,9 +270,16 @@ if __name__ == "__main__":
                 activation="ReLU",
                 head_with_activation=False)
     emlp.eval()  # Shut down batch norm
+    
+    print(in_type.size, out_type.size)
 
     x = in_type(torch.randn(1, in_type.size))
     y = emlp(x)
+
+    import numpy as np
+    model_parameters = filter(lambda p: p.requires_grad, emlp.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    print("Net PARAMS: ", params)
 
     for g in G.elements:
         g_x = in_type(in_type.transform_fibers(x.tensor, g))  # Compute g · x
@@ -255,3 +287,5 @@ if __name__ == "__main__":
         g_y = emlp(g_x)  # Compute g · y
         assert torch.allclose(g_y_gt.tensor, g_y.tensor, rtol=1e-4, atol=1e-4), \
             f"{g} invariance failed {g_y_gt.tensor} != {g_y.tensor}"
+        
+    print("equivariance passed")

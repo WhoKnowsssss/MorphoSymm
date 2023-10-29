@@ -35,7 +35,7 @@ class IsotypicBasis(EquivariantModule):
         x_iso = torch.einsum('ij,...j->...i', self.Q2iso, x.tensor)
         return self.out_type(x_iso)
 
-    def evaluate_output_shape(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
+    def evaluate_output_shape(self, input_shape):
         """Shape of the output field."""
         return input_shape
 
