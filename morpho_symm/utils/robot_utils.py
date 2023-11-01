@@ -113,7 +113,7 @@ def load_symmetric_system(
     rep_field = float if robot_cfg.rep_fields.lower() != 'complex' else complex
 
     # Get the dimensions of the spaces Q_js and TqQ_js
-    dimQ_js, dimTqQ_js = 12, 12
+    dimQ_js, dimTqQ_js = 24, 12
 
     # Joint-Space Q_js (generalized position coordinates)
     rep_Q_js = {G.identity: np.eye(dimQ_js, dtype=rep_field)}

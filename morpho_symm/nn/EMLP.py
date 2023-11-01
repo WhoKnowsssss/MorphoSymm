@@ -224,7 +224,7 @@ class EMLP(EquivariantModule):
 if __name__ == "__main__":
     # Load robot instance and its symmetry group
     initialize(config_path="../cfg/robot", version_base='1.3')
-    robot_name = 'atlas'  # or any of the robots in the library (see `/morpho_symm/cfg/robot`)
+    robot_name = 'mini_cheetah-k4'  # or any of the robots in the library (see `/morpho_symm/cfg/robot`)
     robot_cfg = compose(config_name=f"{robot_name}.yaml")
     robot, G = load_symmetric_system(robot_cfg=robot_cfg)
 
@@ -235,6 +235,26 @@ if __name__ == "__main__":
     rep_TqQJ = G.representations["TqQ_js"]  # Used to transform joint-space velocity coordinates v_js ∈ TqQ_js
     rep_O3 = G.representations["Rd"]  # Used to transform the linear momentum l ∈ R3
     rep_O3_pseudo = G.representations["Rd_pseudo"]  # Used to transform the angular momentum k ∈ R3
+
+
+    nom = torch.tensor([1, 0.7, -1.4, 1, 0.7, -1.4, 1, 0.7, -1.4, 1, 0.7, -1.4])
+    print(nom)
+    nom = torch.stack([torch.cos(nom), torch.sin(nom)], dim=-1).view(-1)
+    for g in G.elements[1:]:
+        sym = torch.from_numpy(rep_QJ(g)).float() @ nom.float()
+        sym = sym.view(-1,2)
+        sym = torch.atan2(sym[...,1], sym[...,0])
+        print(sym)
+        
+    nom = torch.tensor([1, 0.7, -1.4, 1, 0.7, -1.4, 1, 0.7, -1.4, 1, 0.7, -1.4])
+    
+    print('\n\n\n\n\n')
+    print(nom)
+    for g in G.elements[1:]:
+        sym = torch.from_numpy(rep_TqQJ(g)).float() @ nom.float()
+        print(sym)
+
+    raise Exception
 
     # Define the input and output FieldTypes using the representations of each geometric object.
     in_type = escnn.nn.FieldType(gspace, [G.regular_representation] * 5)
