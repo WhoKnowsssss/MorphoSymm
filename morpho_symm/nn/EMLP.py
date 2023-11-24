@@ -193,6 +193,7 @@ class EMLP(EquivariantModule):
 
     @staticmethod
     def irrep_norm_pooling(x: torch.Tensor, field_type: FieldType) -> torch.Tensor:
+        from morpho_symm.utils.rep_theory_utils import irreps_stats
         n_inv_features = len(field_type.irreps)
         # TODO: Ensure isotypic basis i.e irreps of the same type are consecutive to each other.
         inv_features = []
@@ -204,7 +205,8 @@ class EMLP(EquivariantModule):
             x_field = x[..., field_start:field_end]
             num_G_stable_spaces = len(rep.irreps)  # Number of G-invariant features = multiplicity of irrep
             # Again this assumes we are already in an Isotypic basis
-            assert len(np.unique(rep.irreps, axis=0)) == 1, "This only works for now on the Isotypic Basis"
+            unique_irreps, _, _ = irreps_stats(rep.irreps)
+            assert len(unique_irreps) >= 1, f"Field type is not an Isotypic Subspace irreps:{unique_irreps}"
             # This basis is useful because we can apply the norm in a vectorized way
             # Reshape features to [batch, num_G_stable_spaces, num_features_per_G_stable_space]
             x_field_p = torch.reshape(x_field, (x_field.shape[0], num_G_stable_spaces, -1))
@@ -270,6 +272,7 @@ if __name__ == "__main__":
     emlp.eval()  # Shut down batch norm
     x = in_type(torch.randn(1, in_type.size))
     y = emlp(x)
+    import numpy as np
 
     import numpy as np
     model_parameters = filter(lambda p: p.requires_grad, emlp.parameters())
@@ -295,8 +298,6 @@ if __name__ == "__main__":
     
     print(in_type.size, out_type.size)
 
-    x = in_type(torch.randn(1, in_type.size))
-    y = emlp(x)
 
     import numpy as np
     model_parameters = filter(lambda p: p.requires_grad, emlp.parameters())
